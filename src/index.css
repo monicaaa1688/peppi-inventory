@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Nunito', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+html, body, #root {
+  min-height: 100dvh;
+  background-color: #FFF8E7;
+  overscroll-behavior-y: none;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Gummy press effect */
+@layer components {
+  .btn-gummy {
+    @apply transition-all duration-150 active:scale-95;
+    box-shadow: 0 6px 0 rgba(92,74,58,0.18);
+  }
+  .btn-gummy:active {
+    box-shadow: 0 2px 0 rgba(92,74,58,0.18);
+    transform: scale(0.95) translateY(4px);
+  }
+
+  .input-peppi {
+    @apply w-full border-2 border-butter-200 rounded-2xl px-4 py-3
+           text-warm-brown placeholder-warm-gray text-base
+           focus:outline-none focus:border-sakura
+           transition-colors duration-200 bg-white;
+    /* prevent iOS zoom on focus */
+    font-size: 16px;
+  }
+}
+
+/* Floating +1/-1 particles */
+.float-particle {
+  position: absolute;
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 1.1rem;
+  animation: floatUp 0.6s ease forwards;
+}
