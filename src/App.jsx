@@ -49,14 +49,14 @@ function StatusBadge({ status, onClick, editable }) {
       onClick={handle}
       disabled={!editable}
       className={[
-        'inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold select-none',
+        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold select-none',
         cfg.bg, cfg.text,
         editable ? 'cursor-pointer active:scale-95 transition-transform' : 'cursor-default',
         anim ? 'animate-wiggle' : '',
       ].join(' ')}
     >
       <span>{status}</span>
-      {editable && <span className="opacity-50 text-xs">↻</span>}
+      {editable && <span className="opacity-40 text-[10px]">↻</span>}
     </button>
   )
 }
@@ -97,101 +97,91 @@ function ProductCard({ product, mode, onUpdateStock, onUpdateStatus, onCopy, onD
     }[product.status] ?? ''
 
     return [
-      'Peppi 款式播报',
-      '',
+      'Peppi 款式播报', '',
       `款式：${product.name}`,
       `状态：${statusLine}`,
       `库存：${product.stock} 件`,
-      product.arrival_note || null,
-      '',
+      product.arrival_note || null, '',
       '来自 Peppi 小团队的温柔告知',
     ].filter(l => l !== null).join('\n')
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-soft p-4 flex flex-col gap-3 relative overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-soft overflow-hidden relative flex flex-col">
 
       {/* Delete */}
       {mode === 'admin' && (
         <button
           onClick={() => onDelete(product.id)}
-          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-butter-100 text-warm-gray active:bg-sakura active:text-white flex items-center justify-center text-base font-black transition-all duration-200 z-10"
-        >
-          ×
-        </button>
+          className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/10 text-warm-brown active:bg-sakura active:text-white flex items-center justify-center text-xs font-black transition-all z-10"
+        >×</button>
       )}
 
       {/* Thumbnail */}
-      <div className="w-full aspect-square rounded-2xl overflow-hidden bg-butter-100 flex items-center justify-center">
+      <div className="w-full aspect-square bg-butter-100 flex items-center justify-center overflow-hidden">
         {product.thumbnail_url ? (
-          <img src={product.thumbnail_url} alt={product.name} className="w-full h-full object-cover" />
+          <img src={product.thumbnail_url} alt={product.name} className="w-full h-full object-contain" />
         ) : (
-          <span className="text-3xl font-black text-warm-gray/40">{fallback}</span>
+          <span className="text-2xl font-black text-warm-gray/30">{fallback}</span>
         )}
       </div>
 
-      {/* Name */}
-      <h3 className="font-extrabold text-warm-brown text-base leading-snug pr-8">
-        {product.name}
-      </h3>
+      {/* Info */}
+      <div className="p-2.5 flex flex-col gap-1.5 flex-1">
 
-      {/* Status */}
-      <StatusBadge status={product.status} onClick={handleStatus} editable={mode === 'admin'} />
+        <h3 className="font-extrabold text-warm-brown text-xs leading-tight line-clamp-2">
+          {product.name}
+        </h3>
 
-      {/* Stock */}
-      <div className="relative flex items-center gap-2">
-        {mode === 'admin' ? (
-          <>
-            <button
-              onClick={() => handleStock(-1)}
-              disabled={product.stock === 0}
-              className="w-12 h-12 rounded-full bg-sakura-light text-warm-brown font-black text-2xl flex items-center justify-center btn-gummy disabled:opacity-30 active:bg-sakura transition-colors"
-            >
-              −
-            </button>
-            <span className={`text-4xl font-black text-warm-brown w-14 text-center tabular-nums ${stockAnim ? 'animate-numberBounce' : ''}`}>
-              {product.stock}
+        <StatusBadge status={product.status} onClick={handleStatus} editable={mode === 'admin'} />
+
+        {/* Stock */}
+        <div className="relative flex items-center gap-1 mt-0.5">
+          {mode === 'admin' ? (
+            <>
+              <button
+                onClick={() => handleStock(-1)}
+                disabled={product.stock === 0}
+                className="w-9 h-9 rounded-full bg-sakura-light text-warm-brown font-black text-base flex items-center justify-center btn-gummy disabled:opacity-30 active:bg-sakura transition-colors flex-shrink-0"
+              >−</button>
+              <span className={`text-xl font-black text-warm-brown flex-1 text-center tabular-nums ${stockAnim ? 'animate-numberBounce' : ''}`}>
+                {product.stock}
+              </span>
+              <button
+                onClick={() => handleStock(1)}
+                className="w-9 h-9 rounded-full bg-mint-light text-warm-brown font-black text-base flex items-center justify-center btn-gummy active:bg-mint transition-colors flex-shrink-0"
+              >+</button>
+              {particles.map(p => (
+                <FloatParticle key={p.id} value={p.delta} color={p.delta > 0 ? '#047857' : '#e11d48'} />
+              ))}
+            </>
+          ) : (
+            <span className="text-xl font-black text-warm-brown tabular-nums">
+              {product.stock}<span className="text-xs font-bold text-warm-gray ml-0.5">件</span>
             </span>
-            <button
-              onClick={() => handleStock(1)}
-              className="w-12 h-12 rounded-full bg-mint-light text-warm-brown font-black text-2xl flex items-center justify-center btn-gummy active:bg-mint transition-colors"
-            >
-              +
-            </button>
-            <span className="text-warm-gray text-sm font-bold">件</span>
-            {particles.map(p => (
-              <FloatParticle key={p.id} value={p.delta} color={p.delta > 0 ? '#047857' : '#e11d48'} />
-            ))}
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-4xl font-black text-warm-brown tabular-nums">{product.stock}</span>
-            <span className="text-warm-gray text-sm font-bold">件在库</span>
-          </div>
+          )}
+        </div>
+
+        {/* Arrival note */}
+        {product.arrival_note && (
+          <p className="text-[10px] text-warm-gray font-semibold bg-butter-100 rounded-xl px-2 py-1 leading-tight line-clamp-1">
+            {product.arrival_note}
+          </p>
+        )}
+
+        {/* Copy button */}
+        {mode === 'share' && (
+          <button
+            onClick={() => onCopy(product, buildCopyText())}
+            className={[
+              'w-full py-2 rounded-xl font-extrabold text-xs transition-all duration-200 mt-auto',
+              copied ? 'bg-mint text-emerald-800 scale-95' : 'bg-sunshine text-warm-brown btn-gummy active:bg-sunshine-dark',
+            ].join(' ')}
+          >
+            {copied ? '已复制！' : '复制文案'}
+          </button>
         )}
       </div>
-
-      {/* Arrival note */}
-      {product.arrival_note && (
-        <p className="text-xs text-warm-brown/75 font-semibold bg-butter-100 rounded-2xl px-3 py-2 leading-relaxed">
-          {product.arrival_note}
-        </p>
-      )}
-
-      {/* Copy button */}
-      {mode === 'share' && (
-        <button
-          onClick={() => onCopy(product, buildCopyText())}
-          className={[
-            'w-full py-3.5 rounded-2xl font-extrabold text-sm transition-all duration-200',
-            copied
-              ? 'bg-mint text-emerald-800 scale-95'
-              : 'bg-sunshine text-warm-brown btn-gummy active:bg-sunshine-dark',
-          ].join(' ')}
-        >
-          {copied ? '已复制！' : '复制文案'}
-        </button>
-      )}
     </div>
   )
 }
@@ -296,7 +286,7 @@ function AddProductModal({ onClose, onAdd }) {
 
           {imagePreview ? (
             <div className="relative w-full rounded-2xl overflow-hidden bg-butter-100" style={{ aspectRatio: '4/3' }}>
-              <img src={imagePreview} alt="预览" className="w-full h-full object-cover" />
+              <img src={imagePreview} alt="预览" className="w-full h-full object-contain" />
               {uploading && (
                 <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
                   <span className="text-warm-brown font-extrabold text-sm">上传中...</span>
@@ -479,14 +469,9 @@ export default function App() {
   const [showAdd,  setShowAdd]  = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
 
-  if (!isConfigured) return <SetupScreen />
-
-  const toast = (msg, duration = 2200) => {
-    setToastMsg(msg)
-    setTimeout(() => setToastMsg(null), duration)
-  }
-
+  // hooks must all be declared before any early return
   const fetchProducts = useCallback(async () => {
+    if (!supabase) return
     setLoading(true)
     const { data, error } = await supabase
       .from('products').select('*').order('created_at', { ascending: true })
@@ -496,6 +481,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!supabase) return
     fetchProducts()
     const channel = supabase
       .channel('peppi-products')
@@ -508,6 +494,13 @@ export default function App() {
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [fetchProducts])
+
+  if (!isConfigured) return <SetupScreen />
+
+  const toast = (msg, duration = 2200) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), duration)
+  }
 
   const updateStock = async (id, stock) => {
     setProducts(p => p.map(x => x.id === id ? { ...x, stock } : x))
@@ -524,6 +517,7 @@ export default function App() {
     if (error) { toast('添加失败：' + error.message); return }
     setShowAdd(false)
     toast('新款式已添加！')
+    fetchProducts()
   }
 
   const deleteProduct = async (id) => {
@@ -589,7 +583,7 @@ export default function App() {
       )}
 
       {/* ── Main ── */}
-      <main className="px-3 pt-4 pb-32 max-w-2xl mx-auto">
+      <main className="px-2 pt-3 pb-32 max-w-2xl mx-auto">
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-red-700 text-sm font-semibold">
@@ -619,7 +613,7 @@ export default function App() {
           </div>
 
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {products.map(p => (
               <ProductCard
                 key={p.id}
