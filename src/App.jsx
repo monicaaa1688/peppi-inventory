@@ -3,19 +3,23 @@ import { supabase, isConfigured } from './lib/supabase'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_LIST = ['现货', '在制', '在途']
-
 const STATUS_CFG = {
-  现货: { bg: 'bg-mint',     text: 'text-emerald-800', label: '现货',  desc: '随时发货' },
-  在制: { bg: 'bg-peach',    text: 'text-orange-800',  label: '在制中', desc: '精心制作' },
-  在途: { bg: 'bg-lavender', text: 'text-indigo-800',  label: '在途',  desc: '飞奔而来' },
+  现货: { bg: 'bg-mint',     text: 'text-emerald-800' },
+  在制: { bg: 'bg-peach',    text: 'text-orange-800'  },
+  在途: { bg: 'bg-lavender', text: 'text-indigo-800'  },
 }
 
+const STOCK_FIELDS = [
+  { key: 'stock_ready',      label: '现货', ...STATUS_CFG['现货'] },
+  { key: 'stock_production', label: '在制', ...STATUS_CFG['在制'] },
+  { key: 'stock_transit',    label: '在途', ...STATUS_CFG['在途'] },
+]
+
 const DEMO_PRODUCTS = [
-  { name: '珍珠奶油托特包',   status: '现货', stock: 5,  arrival_note: '',              thumbnail_url: '' },
-  { name: '草莓牛奶针织开衫', status: '在途', stock: 0,  arrival_note: '预计3天内飞奔到仓库', thumbnail_url: '' },
-  { name: '奶油芝士侧背包',   status: '在制', stock: 0,  arrival_note: '约7天后出炉，香！',  thumbnail_url: '' },
-  { name: '薄荷冰激凌凉鞋',   status: '现货', stock: 12, arrival_note: '',              thumbnail_url: '' },
+  { name: '珍珠奶油托特包',   stock_ready: 5,  stock_production: 2, stock_transit: 0, arrival_note: '',              thumbnail_url: '' },
+  { name: '草莓牛奶针织开衫', stock_ready: 0,  stock_production: 3, stock_transit: 8, arrival_note: '预计3天内飞奔到仓库', thumbnail_url: '' },
+  { name: '奶油芝士侧背包',   stock_ready: 2,  stock_production: 5, stock_transit: 0, arrival_note: '约7天后出炉，香！',  thumbnail_url: '' },
+  { name: '薄荷冰激凌凉鞋',   stock_ready: 12, stock_production: 0, stock_transit: 6, arrival_note: '',              thumbnail_url: '' },
 ]
 
 // ─── FloatParticle ────────────────────────────────────────────────────────────
@@ -24,51 +28,19 @@ function FloatParticle({ value, color }) {
   return (
     <span
       className="float-particle"
-      style={{ color, right: value > 0 ? '8px' : 'auto', left: value < 0 ? '8px' : 'auto', top: 0 }}
+      style={{ color, right: value > 0 ? '4px' : 'auto', left: value < 0 ? '4px' : 'auto', top: 0 }}
     >
       {value > 0 ? `+${value}` : value}
     </span>
   )
 }
 
-// ─── StatusBadge ─────────────────────────────────────────────────────────────
+// ─── StockRow ─────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status, onClick, editable }) {
+function StockRow({ label, value, fieldKey, bg, text, mode, onUpdate, productId }) {
   const [anim, setAnim] = useState(false)
-  const cfg = STATUS_CFG[status] || STATUS_CFG['现货']
-
-  const handle = () => {
-    if (!editable) return
-    setAnim(true)
-    setTimeout(() => setAnim(false), 360)
-    onClick()
-  }
-
-  return (
-    <button
-      onClick={handle}
-      disabled={!editable}
-      className={[
-        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold select-none',
-        cfg.bg, cfg.text,
-        editable ? 'cursor-pointer active:scale-95 transition-transform' : 'cursor-default',
-        anim ? 'animate-wiggle' : '',
-      ].join(' ')}
-    >
-      <span>{status}</span>
-      {editable && <span className="opacity-40 text-[10px]">↻</span>}
-    </button>
-  )
-}
-
-// ─── ProductCard ──────────────────────────────────────────────────────────────
-
-function ProductCard({ product, mode, onUpdateStock, onUpdateStatus, onCopy, onDelete, copied }) {
-  const [stockAnim, setStockAnim] = useState(false)
   const [particles, setParticles] = useState([])
   const particleId = useRef(0)
-
-  const fallback = product.name?.slice(0, 1) ?? '?'
 
   const fireParticle = (delta) => {
     const id = ++particleId.current
@@ -76,31 +48,61 @@ function ProductCard({ product, mode, onUpdateStock, onUpdateStatus, onCopy, onD
     setTimeout(() => setParticles(p => p.filter(x => x.id !== id)), 650)
   }
 
-  const handleStock = (delta) => {
-    const next = Math.max(0, product.stock + delta)
-    setStockAnim(true)
-    setTimeout(() => setStockAnim(false), 360)
+  const handle = (delta) => {
+    const next = Math.max(0, value + delta)
+    setAnim(true)
+    setTimeout(() => setAnim(false), 360)
     fireParticle(delta)
-    onUpdateStock(product.id, next)
+    onUpdate(productId, fieldKey, next)
   }
 
-  const handleStatus = () => {
-    const i = STATUS_LIST.indexOf(product.status)
-    onUpdateStatus(product.id, STATUS_LIST[(i + 1) % STATUS_LIST.length])
-  }
+  return (
+    <div className="relative flex items-center gap-1">
+      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${bg} ${text} w-8 text-center flex-shrink-0 select-none`}>
+        {label}
+      </span>
+
+      {mode === 'admin' ? (
+        <>
+          <button
+            onClick={() => handle(-1)}
+            disabled={value === 0}
+            className="w-7 h-7 rounded-full bg-sakura-light text-warm-brown font-black text-sm flex items-center justify-center btn-gummy disabled:opacity-30 active:bg-sakura transition-colors flex-shrink-0"
+          >−</button>
+          <span className={`flex-1 text-center font-black text-sm tabular-nums text-warm-brown ${anim ? 'animate-numberBounce' : ''}`}>
+            {value}
+          </span>
+          <button
+            onClick={() => handle(1)}
+            className="w-7 h-7 rounded-full bg-mint-light text-warm-brown font-black text-sm flex items-center justify-center btn-gummy active:bg-mint transition-colors flex-shrink-0"
+          >+</button>
+          {particles.map(p => (
+            <FloatParticle key={p.id} value={p.delta} color={p.delta > 0 ? '#047857' : '#e11d48'} />
+          ))}
+        </>
+      ) : (
+        <span className="text-sm font-black text-warm-brown tabular-nums ml-1">
+          {value}<span className="text-xs font-bold text-warm-gray ml-0.5">件</span>
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ─── ProductCard ──────────────────────────────────────────────────────────────
+
+function ProductCard({ product, mode, onUpdateStock, onCopy, onDelete, copied }) {
+  const fallback = product.name?.slice(0, 1) ?? '?'
 
   const buildCopyText = () => {
-    const statusLine = {
-      现货: '现货在库，随时发货！',
-      在制: '正在精心制作中～',
-      在途: '已在路上飞奔而来！',
-    }[product.status] ?? ''
+    const stockLines = STOCK_FIELDS
+      .filter(f => (product[f.key] ?? 0) > 0)
+      .map(f => `${f.label}：${product[f.key]}件`)
 
     return [
       'Peppi 款式播报', '',
       `款式：${product.name}`,
-      `状态：${statusLine}`,
-      `库存：${product.stock} 件`,
+      ...stockLines,
       product.arrival_note || null, '',
       '来自 Peppi 小团队的温柔告知',
     ].filter(l => l !== null).join('\n')
@@ -129,37 +131,25 @@ function ProductCard({ product, mode, onUpdateStock, onUpdateStatus, onCopy, onD
       {/* Info */}
       <div className="p-2.5 flex flex-col gap-1.5 flex-1">
 
-        <h3 className="font-extrabold text-warm-brown text-xs leading-tight line-clamp-2">
+        <h3 className="font-extrabold text-warm-brown text-xs leading-tight line-clamp-2 pr-5">
           {product.name}
         </h3>
 
-        <StatusBadge status={product.status} onClick={handleStatus} editable={mode === 'admin'} />
-
-        {/* Stock */}
-        <div className="relative flex items-center gap-1 mt-0.5">
-          {mode === 'admin' ? (
-            <>
-              <button
-                onClick={() => handleStock(-1)}
-                disabled={product.stock === 0}
-                className="w-9 h-9 rounded-full bg-sakura-light text-warm-brown font-black text-base flex items-center justify-center btn-gummy disabled:opacity-30 active:bg-sakura transition-colors flex-shrink-0"
-              >−</button>
-              <span className={`text-xl font-black text-warm-brown flex-1 text-center tabular-nums ${stockAnim ? 'animate-numberBounce' : ''}`}>
-                {product.stock}
-              </span>
-              <button
-                onClick={() => handleStock(1)}
-                className="w-9 h-9 rounded-full bg-mint-light text-warm-brown font-black text-base flex items-center justify-center btn-gummy active:bg-mint transition-colors flex-shrink-0"
-              >+</button>
-              {particles.map(p => (
-                <FloatParticle key={p.id} value={p.delta} color={p.delta > 0 ? '#047857' : '#e11d48'} />
-              ))}
-            </>
-          ) : (
-            <span className="text-xl font-black text-warm-brown tabular-nums">
-              {product.stock}<span className="text-xs font-bold text-warm-gray ml-0.5">件</span>
-            </span>
-          )}
+        {/* Three stock rows */}
+        <div className="flex flex-col gap-1 mt-0.5">
+          {STOCK_FIELDS.map(f => (
+            <StockRow
+              key={f.key}
+              label={f.label}
+              value={product[f.key] ?? 0}
+              fieldKey={f.key}
+              bg={f.bg}
+              text={f.text}
+              mode={mode}
+              onUpdate={onUpdateStock}
+              productId={product.id}
+            />
+          ))}
         </div>
 
         {/* Arrival note */}
@@ -189,7 +179,13 @@ function ProductCard({ product, mode, onUpdateStock, onUpdateStatus, onCopy, onD
 // ─── AddProductModal ──────────────────────────────────────────────────────────
 
 function AddProductModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ name: '', status: '现货', stock: 0, arrival_note: '' })
+  const [form, setForm] = useState({
+    name: '',
+    stock_ready: 0,
+    stock_production: 0,
+    stock_transit: 0,
+    arrival_note: '',
+  })
   const [loading,      setLoading]      = useState(false)
   const [imageFile,    setImageFile]    = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -245,7 +241,14 @@ function AddProductModal({ onClose, onAdd }) {
       }
       setUploading(false)
     }
-    await onAdd({ ...form, thumbnail_url, stock: Math.max(0, parseInt(form.stock) || 0) })
+    await onAdd({
+      name: form.name.trim(),
+      thumbnail_url,
+      stock_ready:      Math.max(0, parseInt(form.stock_ready)      || 0),
+      stock_production: Math.max(0, parseInt(form.stock_production) || 0),
+      stock_transit:    Math.max(0, parseInt(form.stock_transit)    || 0),
+      arrival_note: form.arrival_note,
+    })
     setLoading(false)
   }
 
@@ -280,7 +283,7 @@ function AddProductModal({ onClose, onAdd }) {
             required
           />
 
-          {/* Hidden file inputs — separate for camera vs gallery */}
+          {/* Hidden file inputs */}
           <input ref={cameraInputRef}  type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
           <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
@@ -325,44 +328,34 @@ function AddProductModal({ onClose, onAdd }) {
             <p className="text-red-600 text-xs font-semibold bg-red-50 rounded-2xl px-3 py-2">{uploadError}</p>
           )}
 
-          {/* Status selector */}
-          <div className="flex gap-2">
-            {STATUS_LIST.map(s => {
-              const cfg = STATUS_CFG[s]
-              const active = form.status === s
-              return (
+          {/* Three stock inputs */}
+          <div className="flex flex-col gap-2">
+            <span className="text-warm-brown font-bold text-sm">库存数量</span>
+            {STOCK_FIELDS.map(f => (
+              <div key={f.key} className="flex items-center gap-2">
+                <span className={`text-xs font-black px-2 py-1 rounded-full ${f.bg} ${f.text} w-10 text-center flex-shrink-0`}>
+                  {f.label}
+                </span>
                 <button
-                  key={s}
                   type="button"
-                  onClick={() => set('status', s)}
-                  className={[
-                    'flex-1 py-3 rounded-2xl text-sm font-bold transition-all duration-200',
-                    active ? `${cfg.bg} ${cfg.text} shadow-soft` : 'bg-butter-100 text-warm-gray active:bg-butter-200',
-                  ].join(' ')}
-                >
-                  {s}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Stock */}
-          <div className="flex items-center gap-3">
-            <span className="text-warm-brown font-bold text-sm flex-shrink-0">库存数量</span>
-            <div className="flex items-center gap-2 flex-1">
-              <button type="button" onClick={() => set('stock', Math.max(0, (parseInt(form.stock)||0) - 1))}
-                className="w-12 h-12 rounded-full bg-sakura-light text-warm-brown font-black flex items-center justify-center btn-gummy active:bg-sakura transition-colors text-xl">−</button>
-              <input
-                type="number" min="0"
-                style={{ fontSize: '16px' }}
-                className="flex-1 border-2 border-butter-200 rounded-2xl px-2 py-2.5 text-warm-brown text-center font-black focus:outline-none focus:border-sakura transition-colors text-xl"
-                value={form.stock}
-                onChange={e => set('stock', e.target.value)}
-              />
-              <button type="button" onClick={() => set('stock', (parseInt(form.stock)||0) + 1)}
-                className="w-12 h-12 rounded-full bg-mint-light text-warm-brown font-black flex items-center justify-center btn-gummy active:bg-mint transition-colors text-xl">+</button>
-              <span className="text-warm-gray text-sm font-semibold">件</span>
-            </div>
+                  onClick={() => set(f.key, Math.max(0, (parseInt(form[f.key]) || 0) - 1))}
+                  className="w-10 h-10 rounded-full bg-sakura-light text-warm-brown font-black flex items-center justify-center btn-gummy active:bg-sakura transition-colors text-lg flex-shrink-0"
+                >−</button>
+                <input
+                  type="number" min="0"
+                  style={{ fontSize: '16px' }}
+                  className="flex-1 border-2 border-butter-200 rounded-2xl px-2 py-2 text-warm-brown text-center font-black focus:outline-none focus:border-sakura transition-colors"
+                  value={form[f.key]}
+                  onChange={e => set(f.key, e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => set(f.key, (parseInt(form[f.key]) || 0) + 1)}
+                  className="w-10 h-10 rounded-full bg-mint-light text-warm-brown font-black flex items-center justify-center btn-gummy active:bg-mint transition-colors text-lg flex-shrink-0"
+                >+</button>
+                <span className="text-warm-gray text-sm font-semibold w-4">件</span>
+              </div>
+            ))}
           </div>
 
           <input
@@ -469,7 +462,6 @@ export default function App() {
   const [showAdd,  setShowAdd]  = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
 
-  // hooks must all be declared before any early return
   const fetchProducts = useCallback(async () => {
     if (!supabase) return
     setLoading(true)
@@ -502,14 +494,9 @@ export default function App() {
     setTimeout(() => setToastMsg(null), duration)
   }
 
-  const updateStock = async (id, stock) => {
-    setProducts(p => p.map(x => x.id === id ? { ...x, stock } : x))
-    await supabase.from('products').update({ stock }).eq('id', id)
-  }
-
-  const updateStatus = async (id, status) => {
-    setProducts(p => p.map(x => x.id === id ? { ...x, status } : x))
-    await supabase.from('products').update({ status }).eq('id', id)
+  const updateStockField = async (id, field, value) => {
+    setProducts(p => p.map(x => x.id === id ? { ...x, [field]: value } : x))
+    await supabase.from('products').update({ [field]: value }).eq('id', id)
   }
 
   const addProduct = async (product) => {
@@ -541,9 +528,13 @@ export default function App() {
   }
 
   const copyAll = () => {
-    const lines = products.map(p =>
-      `${p.name} · ${p.status} · ${p.stock}件${p.arrival_note ? ' · ' + p.arrival_note : ''}`
-    )
+    const lines = products.map(p => {
+      const stocks = STOCK_FIELDS
+        .filter(f => (p[f.key] ?? 0) > 0)
+        .map(f => `${f.label}${p[f.key]}件`)
+        .join(' / ')
+      return `${p.name} · ${stocks || '暂无库存'}${p.arrival_note ? ' · ' + p.arrival_note : ''}`
+    })
     navigator.clipboard.writeText(['Peppi 今日库存播报', '', ...lines, '', 'Peppi 小团队'].join('\n'))
     toast('全部款式文案已复制！')
   }
@@ -619,8 +610,7 @@ export default function App() {
                 key={p.id}
                 product={p}
                 mode={mode}
-                onUpdateStock={updateStock}
-                onUpdateStatus={updateStatus}
+                onUpdateStock={updateStockField}
                 onCopy={handleCopy}
                 onDelete={deleteProduct}
                 copied={copiedId === p.id}
